@@ -1,6 +1,8 @@
 var Snake = function(options) {
+    this.options = options;
+
     this.size = 20;
-    this.direction = 'down';
+    this.direction = options.direction || 'down';
     this.points = [];
     this.gameSize = 30;
     this.lost = false;
@@ -9,39 +11,82 @@ var Snake = function(options) {
     this.edges = false;
     this.eventContext = options.eventContext;
     this.canvas = options.canvas;
+    this.paper = options.paper;
+    this.remote = this.options.remote;
+    this.myPlayerRef = null;
 
     this.init();
-    this.initListeners();
-    this.start();
+    
+    var self = this;
+
+    this.remote.child('player' + options.playerNum + '/online').on('value', function(onlineSnap) {
+        if (onlineSnap.val() === null && self.status === 'waiting' && window.joining === false) {
+            console.log('try-to-join')
+            self.tryToJoin(options.playerNum);
+      } else if (onlineSnap.val() === true && self.status === 'waiting') {
+            console.log("observer on " + options.playerNum);
+            self.start();
+            self.remote.child('player' + options.playerNum + '/direction').on('value', function(direction) {
+                console.log('direction get', direction.val())
+                if (direction.val())
+                    self.direction = direction.val();
+            });
+      }
+    });
+
 };
 
 Snake.prototype = {
 	init: function(){
-		window.paper.setup(this.canvas);
-
-		this.add();
-	    this.add();
-	    this.add();
-	    this.add();
-	    this.addPill();
+        this.status = 'waiting';
 	},
 
-	start: function(){
+    tryToJoin : function(playerNum) {
+        this.status = 'joining';
+        window.joining = true;
+
+        // Use a transaction to make sure we don't conflict with other people trying to join.
+        var self = this;
+        this.remote.child('player' + playerNum + '/online').transaction(function(onlineVal) {
+            if (onlineVal === null) {
+                return true; // Try to set online to true.
+            } else {
+                return; // Somebody must have beat us.  Abort the transaction.
+            }
+        }, function(error, committed) {
+            if (committed) { // We got in!
+                self.start(playerNum);
+            }
+        });
+    },
+
+	start: function(playerNum){
+        this.color = 'blue'
+
+        if (playerNum) {
+            this.playerNum = playerNum;
+            this.myPlayerRef = this.remote.child('player' + playerNum);
+            this.color = 'black'
+
+            // Clear our 'online' status when we disconnect so somebody else can join.
+            this.myPlayerRef.onDisconnect().remove();
+            this.initListeners();
+        }
+        
+
+        this.add();
+        this.add();
+        this.add();
+        this.add();
+        this.addPill();
+
+
 		var me = this;
-	    var lastTime = 0;
-	    window.paper.view.onFrame = function(event) {
-	        if (event.time >= lastTime) {
-	            lastTime = event.time + 0.15; //Increment is time in seconds
-
-	            me.move();
-	            window.paper.view.draw();
-
-	        }
-	    }
+        this.status = 'playing';
 	},
 
 	stop: function(){
-		window.paper.view.onFrame = null;
+		this.paper.view.onFrame = null;
 	},
 
     add: function() {
@@ -53,12 +98,14 @@ Snake.prototype = {
         var x = parseInt(Math.random() *this.gameSize) * this.size;
         var y = parseInt(Math.random() *this.gameSize) * this.size;
 
-        this.pill = this._createSquare(x,y,'#888');
+        this.pill = this._createSquare(x,y, this.options.color);
     },
 
     //Move last point to the next point
     move: function(){
-        if (this.lost) this.stop();
+        //console.log('direction: ', this.direction)
+        if (this.status !== 'playing') return;
+        //if (this.lost) this.stop();
         this.activeDirection = this.direction;
 
         var last = this.points.pop();
@@ -81,7 +128,6 @@ Snake.prototype = {
         this.points.unshift(last);
         
         if (!this._moveInsidebounds() || this._moveCollide()) {
-            console.log('lost');
             this.lost = true;
             return;
         }
@@ -127,7 +173,7 @@ Snake.prototype = {
     },
 
     _createSquare: function (x,y,color){
-        color = color || 'black';
+        color = color || this.options.color;
         if (x===undefined && y ===undefined) {
             x = 0;
             y = 0;
@@ -152,17 +198,19 @@ Snake.prototype = {
     /*Controller*/
     initListeners: function(){
 		//adding Keyboard
-	    $(this.eventContext).keydown($.proxy(this.onKeyboard,this));
+        if (this.options.control) {
+            $(this.eventContext).keydown($.proxy(this.onKeyboard,this));
+        }
 	},
 
 	onKeyboard:function(e) {
-        if (e.keyCode === 37) { //left
+        if (e.keyCode === this.options.control.left) { //left
             this.left()
-        } else if (e.keyCode === 38){ //up
+        } else if (e.keyCode === this.options.control.up){ //up
             this.up();
-        } else if (e.keyCode === 39) { //right
+        } else if (e.keyCode === this.options.control.right) { //right
            this.right();
-        } else if (e.keyCode === 40) { //down
+        } else if (e.keyCode === this.options.control.down) { //down
            this.down();
         }
 	},
@@ -170,20 +218,24 @@ Snake.prototype = {
     up: function(){
         if (this.activeDirection === 'down') return;
         this.direction = 'up';
+        this.remote.child('player'+ this.playerNum +'/direction').set('up')
     },
 
     down: function(){
         if (this.activeDirection === 'up') return;
         this.direction = 'down';
+        this.remote.child('player'+ this.playerNum +'/direction').set('down')
     },
 
     left: function(){
         if (this.activeDirection === 'right') return;
         this.direction = 'left';
+        this.remote.child('player'+ this.playerNum +'/direction').set('left')
     },
 
     right: function(){
         if (this.activeDirection === 'left') return;
         this.direction = 'right';
+        this.remote.child('player'+ this.playerNum +'/direction').set('right')
     }
 }

@@ -11,6 +11,7 @@
         <link rel="stylesheet" href="css/main.css">
 
         <script src="js/vendor/modernizr-2.6.2-respond-1.1.0.min.js"></script>
+
     </head>
     <body>
         <div id="canvas-container">
@@ -18,16 +19,73 @@
         </div>
         <div id="score"></div>
 
+        <script type='text/javascript' src='https://cdn.firebase.com/v0/firebase.js'></script>
         <script src="js/vendor/jquery-1.10.1.min.js"></script>
         <script src="js/vendor/paper-full.min.js"></script>
         <script src="js/board.js"></script>
         <script src="js/snake.js"></script>
         <script>
             $(document).ready(function(){
-                var mySnake = new Snake({
-                    canvas : document.getElementById('myCanvas'),
-                    eventContext : document
+                var remote = new Firebase('https://multiSnake.firebaseIO.com/');
+
+                window.paper.setup(document.getElementById('myCanvas'));
+                window.joining = false; //todo: move somewhere else
+
+                var mySnake1 = new Snake({
+                    eventContext : document,
+                    direction: 'down',
+                    paper : window.paper,
+                    color: 'black',
+                    remote: remote,
+                    playerNum: 1,
+                    control : {
+                        left: 37,
+                        up: 38,
+                        right: 39,
+                        down: 40
+                    }
                 });
+
+                var mySnake2 = new Snake({
+                    eventContext : document,
+                    direction: 'right',
+                    paper: paper,
+                    color: 'blue',
+                    remote: remote,
+                    playerNum: 2,
+                    control : {
+                        left: 37,
+                        up: 38,
+                        right: 39,
+                        down: 40
+                    }
+                });
+
+                /*
+                var mySnake2 = new Snake({
+                    eventContext : document,
+                    direction: 'right',
+                    paper: paper,
+                    color: 'blue',
+                    control : {
+                        left: 65,
+                        up: 87,
+                        right: 68,
+                        down: 83
+                    }
+                });*/
+
+                var lastTime = 0;
+                window.paper.view.onFrame = function(event) {
+                    if (event.time >= lastTime) {
+                        lastTime = event.time + 0.15; //Increment is time in seconds
+
+                        mySnake1.move();
+                        mySnake2.move();
+                        window.paper.view.draw();
+
+                    }
+                }
             })
         </script>
     </body>
