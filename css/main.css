@@ -1,0 +1,33 @@
+
+
+/* ==========================================================================
+   Author's custom styles
+   ========================================================================== */
+
+body {
+	background-color: orange;
+}
+
+#canvas-container {
+	width:600px;
+	margin: 0 auto;
+}
+
+#myCanvas {
+	width:100%;
+	height:600px;
+	background-color: white;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
