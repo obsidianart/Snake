@@ -22,7 +22,10 @@ Board.prototype = {
         return this._getStartCell(player);
 	},
 
-    //take a cell based on an existing cell and a direction
+    //get a cell based on an existing cell and a direction
+    //If the cell is empty it assign and retrieve
+    //If is a pill return it
+    //If is not valid return false
     take: function(opts){
         var cell = opts.cell.rect;
 
@@ -35,8 +38,6 @@ Board.prototype = {
         else if (opts.direction === 'down')  newY = cell.bounds.y + this.size;
         else if (opts.direction === 'right') newX = cell.bounds.x + this.size;
         else if (opts.direction === 'left')  newX = cell.bounds.x - this.size;
-
-
 
         //Check if the cell already exist
         var testCell = this._getCellByPosition({x: newX, y: newY});
@@ -53,9 +54,6 @@ Board.prototype = {
         if (!this._isInside({x:newX, y:newY})){
             return false;
         }
-
-
-        //Is a power pill, take it
 
         return this._createCell({
             x: newX,
@@ -110,6 +108,7 @@ Board.prototype = {
     },
 
     _getRndCellId : function(){
+        if (this.idseed === Infinity) this.idseed = 0;
         return 'cell' + this.idseed++;
     },
 
@@ -128,17 +127,6 @@ Board.prototype = {
         return false;
     },
 
-    _isPill: function() {
-        var x = this.points[0].bounds.x;
-        var y = this.points[0].bounds.y;
-
-        if (this.pill.bounds.x === x && this.pill.bounds.y === y) {
-            this.pill.remove();
-            this.addPill();
-            this.add();
-        }
-    },
-
     _isInside: function(opts){
         var x = opts.x;
         var y = opts.y;
@@ -148,22 +136,6 @@ Board.prototype = {
         if ( y > this.gameSize * this.size-1) return false;
 
         return true;
-    },
-
-    _isFree: function(){
-        var x = this.points[0].bounds.x;
-        var y = this.points[0].bounds.y;
-        var el;
-
-        //test all the points but the first
-        for (var i = 1; i < this.points.length; i++ ) {
-            el = this.points[i];
-            if (el.bounds.x === x && el.bounds.y === y) {
-                return true;
-            }
-        }
-
-        return false;
     },
 
     _createCell: function (opt){
