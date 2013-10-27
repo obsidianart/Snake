@@ -1,14 +1,13 @@
 var Snake = function(options) {
     this.options = options;
+    
+    this.board = options.board;
 
-    this.size = 20;
     this.direction = options.direction || 'down';
-    this.points = [];
-    this.gameSize = 30;
+    this.body = [];
+    
     this.lost = false;
-    this.pill;
     this.activeDirection;
-    this.edges = false;
     this.eventContext = options.eventContext;
     this.canvas = options.canvas;
     this.paper = options.paper;
@@ -16,8 +15,12 @@ var Snake = function(options) {
     this.myPlayerRef = null;
 
     this.init();
-    
+    this.initListeners();
+    this.start(1);
+
+/*    
     var self = this;
+
 
     this.remote.child('player' + options.playerNum + '/online').on('value', function(onlineSnap) {
         if (onlineSnap.val() === null && self.status === 'waiting' && window.joining === false) {
@@ -33,6 +36,7 @@ var Snake = function(options) {
             });
       }
     });
+*/
 
 };
 
@@ -43,6 +47,7 @@ Snake.prototype = {
 
     tryToJoin : function(playerNum) {
         this.status = 'joining';
+        /*
         window.joining = true;
 
         // Use a transaction to make sure we don't conflict with other people trying to join.
@@ -57,163 +62,66 @@ Snake.prototype = {
             if (committed) { // We got in!
                 self.start(playerNum);
             }
-        });
+        });*/
     },
 
 	start: function(playerNum){
-        this.color = 'blue'
-
-        if (playerNum) {
-            this.playerNum = playerNum;
-            this.myPlayerRef = this.remote.child('player' + playerNum);
-            this.color = 'black'
-
-            // Clear our 'online' status when we disconnect so somebody else can join.
-            this.myPlayerRef.onDisconnect().remove();
-            this.initListeners();
-        }
-        
-
-        this.add();
-        this.add();
-        this.add();
-        this.add();
-        this.addPill();
-
-
-		var me = this;
         this.status = 'playing';
+
+        this.playerNum = playerNum;
+
+        var startCell = this.board.addPlayer(this.playerNum);
+
+        this.body.push(startCell);
+
+        //this.myPlayerRef = this.remote.child('player' + playerNum);
+
+        // Clear our 'online' status when we disconnect so somebody else can join.
+        //this.myPlayerRef.onDisconnect().remove();  
 	},
-
-	stop: function(){
-		this.paper.view.onFrame = null;
-	},
-
-    add: function() {
-        this.points.push(this._createSquare());
-        $('#score').html(this.points.length);
-    },
-
-    addPill: function() {
-        var x = parseInt(Math.random() *this.gameSize) * this.size;
-        var y = parseInt(Math.random() *this.gameSize) * this.size;
-
-        this.pill = this._createSquare(x,y, this.options.color);
-    },
 
     //Move last point to the next point
     move: function(){
-        //console.log('direction: ', this.direction)
+        //Check if allowd to move by its status
         if (this.status !== 'playing') return;
-        //if (this.lost) this.stop();
+
+        //update active direction. Active direction is the direction I'm moving in (direction is the expression of user will for next move)
         this.activeDirection = this.direction;
 
-        var last = this.points.pop();
-        var first = this.points[0];
+        var last = this.body[this.body.length-1];
+        var first = this.body.length > 0 ? this.body[0] : last; //taking into account a body of 1 square only
 
-        last.bounds.y = first.bounds.y;
-        last.bounds.x = first.bounds.x;
+        //take next point
+        var next = this.board.take({
+            cell : first,
+            direction : this.direction
+        });
 
-        //Yes, I do not like switch
-        if (this.direction === 'up') {
-            last.bounds.y = first.bounds.y - this.size;
-        } else if (this.direction === 'down') {
-            last.bounds.y = first.bounds.y + this.size;
-        } else if (this.direction === 'right') {
-            last.bounds.x = first.bounds.x + this.size;
-        } else if (this.direction === 'left') {
-            last.bounds.x = first.bounds.x - this.size;
-        }
-
-        this.points.unshift(last);
-        
-        if (!this._moveInsidebounds() || this._moveCollide()) {
-            this.lost = true;
+        if (!next) {
+            this.status='lost';
             return;
         }
-        this._touchedPowerPill();
-    },
 
-    _touchedPowerPill: function() {
-        var x = this.points[0].bounds.x;
-        var y = this.points[0].bounds.y;
+        if (next.type !== 'pill') {
+            //free the tail point
+            this.board.free({ cell:this.body.pop() });
+            this.body.unshift(next);
+        } else {
+            this.board.free({cell:next});
+            next = this.board.take({
+                cell:first,
+                direction : this.direction
+            });
+            this.body.unshift(next);
 
-        if (this.pill.bounds.x === x && this.pill.bounds.y === y) {
-            this.pill.remove();
-            this.addPill();
-            this.add();
-        }
-    },
-
-    _moveInsidebounds: function(){
-        var x = this.points[0].bounds.x;
-        var y = this.points[0].bounds.y;
-
-        if ( x < 0 || y < 0) return false;
-        if ( x > this.gameSize * this.size) return false;
-        if ( y > this.gameSize * this.size) return false;
-
-        return true;
-    },
-
-    _moveCollide: function(){
-        var x = this.points[0].bounds.x;
-        var y = this.points[0].bounds.y;
-        var el;
-
-        //test all the points but the first
-        for (var i = 1; i < this.points.length; i++ ) {
-            el = this.points[i];
-            if (el.bounds.x === x && el.bounds.y === y) {
-                return true;
-            }
+            //It was a pill, we can put the tail back and grow
+            //this.body.push(last);
+            this.board.addPill();
+            
         }
 
-        return false;
+        
     },
-
-    _createSquare: function (x,y,color){
-        color = color || this.options.color;
-        if (x===undefined && y ===undefined) {
-            x = 0;
-            y = 0;
-
-            if (this.points.length > 0) {
-                x = this.points[this.points.length-1].bounds.x;
-                y = this.points[this.points.length-1].bounds.y;
-            }
-        }
-
-        return rectangle = new paper.Path.Rectangle({
-            point: [x, y],
-            size: [this.size, this.size],
-            strokeWidth: 1,
-            strokeColor:'white',
-            fillColor : color //'#'+Math.floor(Math.random()*16777215).toString(16)
-        });
-    },
-
-
-
-    /*Controller*/
-    initListeners: function(){
-		//adding Keyboard
-        if (this.options.control) {
-            $(this.eventContext).keydown($.proxy(this.onKeyboard,this));
-        }
-	},
-
-	onKeyboard:function(e) {
-        if (e.keyCode === this.options.control.left) { //left
-            this.left()
-        } else if (e.keyCode === this.options.control.up){ //up
-            this.up();
-        } else if (e.keyCode === this.options.control.right) { //right
-           this.right();
-        } else if (e.keyCode === this.options.control.down) { //down
-           this.down();
-        }
-	},
 
     up: function(){
         if (this.activeDirection === 'down') return;
@@ -237,5 +145,28 @@ Snake.prototype = {
         if (this.activeDirection === 'left') return;
         this.direction = 'right';
         this.remote.child('player'+ this.playerNum +'/direction').set('right')
+    },
+
+
+
+
+    /*Controller*/
+    initListeners: function(){
+        //adding Keyboard
+        if (this.options.control) {
+            $(this.eventContext).keydown($.proxy(this.onKeyboard,this));
+        }
+    },
+
+    onKeyboard:function(e) {
+        if (e.keyCode === this.options.control.left) { //left
+            this.left()
+        } else if (e.keyCode === this.options.control.up){ //up
+            this.up();
+        } else if (e.keyCode === this.options.control.right) { //right
+           this.right();
+        } else if (e.keyCode === this.options.control.down) { //down
+           this.down();
+        }
     }
 }

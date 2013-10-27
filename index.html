@@ -22,14 +22,22 @@
         <script type='text/javascript' src='https://cdn.firebase.com/v0/firebase.js'></script>
         <script src="js/vendor/jquery-1.10.1.min.js"></script>
         <script src="js/vendor/paper-full.min.js"></script>
+
+        <script src="js/cell.js"></script>
         <script src="js/board.js"></script>
         <script src="js/snake.js"></script>
+        <script type="nill" src="js/snakeMaster.js"></script>
         <script>
-            $(document).ready(function(){
+            //$(document).ready(function(){
                 var remote = new Firebase('https://multiSnake.firebaseIO.com/');
 
                 window.paper.setup(document.getElementById('myCanvas'));
                 window.joining = false; //todo: move somewhere else
+
+                var board = new Board({
+                    size : 20,
+                    gameSize : 30
+                });
 
                 var mySnake1 = new Snake({
                     eventContext : document,
@@ -37,7 +45,8 @@
                     paper : window.paper,
                     color: 'black',
                     remote: remote,
-                    playerNum: 1,
+                    playerNum: '1',
+                    board: board,
                     control : {
                         left: 37,
                         up: 38,
@@ -45,14 +54,14 @@
                         down: 40
                     }
                 });
-
+/*
                 var mySnake2 = new Snake({
                     eventContext : document,
                     direction: 'right',
                     paper: paper,
                     color: 'blue',
                     remote: remote,
-                    playerNum: 2,
+                    playerNum: '2',
                     control : {
                         left: 37,
                         up: 38,
@@ -60,7 +69,7 @@
                         down: 40
                     }
                 });
-
+*/
                 /*
                 var mySnake2 = new Snake({
                     eventContext : document,
@@ -81,12 +90,12 @@
                         lastTime = event.time + 0.15; //Increment is time in seconds
 
                         mySnake1.move();
-                        mySnake2.move();
+                        //mySnake2.move();
                         window.paper.view.draw();
 
                     }
                 }
-            })
+            //})
         </script>
     </body>
 </html>
