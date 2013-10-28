@@ -113,13 +113,14 @@ Snake.prototype = {
 
     /*Controller*/
     initListeners: function(){
+        var self = this;
         if (this.master) {
             if (this.options.control) {
                 $(this.eventContext).keydown($.proxy(this.onKeyboard,this));
             }
         } else {
             this.remote.child('player' + this.playerNum + '/direction').on('value', function(direction) {
-                console.log('direction get', direction.val())
+                console.log('direction get', direction.val(), self.playerNum)
                 if (direction.val())
                     self.direction = direction.val();
             });
