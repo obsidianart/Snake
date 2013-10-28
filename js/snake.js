@@ -11,32 +11,20 @@ var Snake = function(options) {
     this.eventContext = options.eventContext;
     this.canvas = options.canvas;
     this.paper = options.paper;
-    this.remote = this.options.remote;
-    this.myPlayerRef = null;
+    this.remote = options.remote;
+    this.playerNum = options.playerNum;
+
+    this.master = options.master;
 
     this.init();
-    this.initListeners();
-    this.start(1);
 
-/*    
+
+    this.initListeners();
+    this.start();
+
+
     var self = this;
 
-
-    this.remote.child('player' + options.playerNum + '/online').on('value', function(onlineSnap) {
-        if (onlineSnap.val() === null && self.status === 'waiting' && window.joining === false) {
-            console.log('try-to-join')
-            self.tryToJoin(options.playerNum);
-      } else if (onlineSnap.val() === true && self.status === 'waiting') {
-            console.log("observer on " + options.playerNum);
-            self.start();
-            self.remote.child('player' + options.playerNum + '/direction').on('value', function(direction) {
-                console.log('direction get', direction.val())
-                if (direction.val())
-                    self.direction = direction.val();
-            });
-      }
-    });
-*/
 
 };
 
@@ -45,39 +33,12 @@ Snake.prototype = {
         this.status = 'waiting';
 	},
 
-    tryToJoin : function(playerNum) {
-        this.status = 'joining';
-        /*
-        window.joining = true;
-
-        // Use a transaction to make sure we don't conflict with other people trying to join.
-        var self = this;
-        this.remote.child('player' + playerNum + '/online').transaction(function(onlineVal) {
-            if (onlineVal === null) {
-                return true; // Try to set online to true.
-            } else {
-                return; // Somebody must have beat us.  Abort the transaction.
-            }
-        }, function(error, committed) {
-            if (committed) { // We got in!
-                self.start(playerNum);
-            }
-        });*/
-    },
-
-	start: function(playerNum){
+	start: function(){
         this.status = 'playing';
-
-        this.playerNum = playerNum;
 
         var startCell = this.board.addPlayer(this.playerNum);
 
         this.body.push(startCell);
-
-        //this.myPlayerRef = this.remote.child('player' + playerNum);
-
-        // Clear our 'online' status when we disconnect so somebody else can join.
-        //this.myPlayerRef.onDisconnect().remove();  
 	},
 
     //Move last point to the next point
@@ -152,9 +113,16 @@ Snake.prototype = {
 
     /*Controller*/
     initListeners: function(){
-        //adding Keyboard
-        if (this.options.control) {
-            $(this.eventContext).keydown($.proxy(this.onKeyboard,this));
+        if (this.master) {
+            if (this.options.control) {
+                $(this.eventContext).keydown($.proxy(this.onKeyboard,this));
+            }
+        } else {
+            this.remote.child('player' + this.playerNum + '/direction').on('value', function(direction) {
+                console.log('direction get', direction.val())
+                if (direction.val())
+                    self.direction = direction.val();
+            });
         }
     },
 

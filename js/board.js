@@ -19,6 +19,10 @@ Board.prototype = {
 		this.players['1'] = {
 			color:'black'
 		}
+        this.players['2'] = {
+            color:'green'
+        }
+
         return this._getStartCell(player);
 	},
 
