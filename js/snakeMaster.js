@@ -1,9 +1,9 @@
-var SnakeMaster = $.extend(Snake, function(options) {
+var SnakeMaster = function(options) {
 	Snake.call(this, options);
 	//this.start(1);
-});
+};
 
-SnakeMaster.prototype = $.extend(Snake.prototype, {
+SnakeMaster.prototype = $.extend({},Snake.prototype, {
 	init: function(){
 		Snake.prototype.init.apply(this, arguments);
 	},

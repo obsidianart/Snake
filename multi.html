@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html ng-app class="no-js">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width">
+
+        <link rel="stylesheet" href="css/bootstrap-theme.min.css">
+        <link rel="stylesheet" href="css/main.css">
+
+        <script src="js/vendor/modernizr-2.6.2-respond-1.1.0.min.js"></script>
+
+    </head>
+    <body>
+        <div id="canvas-container">
+            <canvas id="myCanvas"></canvas>
+        </div>
+        <div id="players">
+            <div id="player1">Player 1</div>
+            <div id="player2">Player 2</div>
+            <div id="score"></div>
+        </div>
+
+        <script type='text/javascript' src='https://cdn.firebase.com/v0/firebase.js'></script>
+        <script src="js/vendor/jquery-1.10.1.min.js"></script>
+        <script src="js/vendor/paper-full.min.js"></script>
+
+        <script src="js/cell.js"></script>
+        <script src="js/board.js"></script>
+        <script src="js/snake.js"></script>
+        <script src="js/snakeMaster.js"></script>
+        <script>
+            //$(document).ready(function(){
+                window.paper.setup(document.getElementById('myCanvas'));
+
+                var mySnakes = [];
+                var remote = new Firebase('https://multiSnake.firebaseIO.com/');
+                var players = 2;
+
+                var masterId = null;
+                var status = 'wait';
+
+                var lastTime = 0;
+
+                var board = new Board({
+                    size : 20,
+                    gameSize : 30
+                });
+
+                var snakeDefault = {
+                    eventContext : document,
+                    direction: 'down',
+                    paper : window.paper,
+                    color: 'black',
+                    remote: remote,
+                    playerNum: '1',
+                    board: board,
+                    master: false,
+                    control : {
+                        left: 37,
+                        up: 38,
+                        right: 39,
+                        down: 40
+                    }
+                };
+
+                //Keep this function as small as possible
+                var play = function (event) {
+                    var i;
+                    if (event.time >= lastTime) {
+                        lastTime = event.time + 0.15; //Increment is time in seconds
+                        mySnakes[0].move();
+                        mySnakes[1].move();
+                        mySnakes.length
+                        window.paper.view.draw();
+                    }
+                }
+
+                var iAmReadyToPlay = function(){
+                    if (status!== 'ready' && mySnakes.length === players) {
+                        status = 'ready';
+                        startTheGame();
+                    }
+                }
+
+                var startTheGame = function(){
+                    console.log("I'm player " + masterId +"Preparing to play");
+                    setTimeout(function(){
+                        status = 'play';
+                        window.paper.view.onFrame = play;
+                    },3000)
+                }
+
+                
+                function connect(num){
+                    //When a player come online
+                    remote.child('player' + num + '/online').on('value', function(online) {
+                        if (online.val() === null && masterId === null) {
+                            //master is not defined yet and the player is not online
+
+                            //Take the master
+                            masterId = num;
+
+                            remote.child('player' + num + '/online').transaction(function(onlineVal) {
+                                if (onlineVal === null) {
+                                    return true; //we are good
+                                }  
+                                else {
+                                    masterId = null; //someone login first
+                                    return;
+                                }
+                            }, function(error, committed) {
+                                if (committed) { // We got in!
+                                    console.log('Mastering on ' + num)
+                                    var myPlayerRef = remote.child('player' + num);
+                                    // Clear our 'online' status when we disconnect so somebody else can join.
+                                    myPlayerRef.onDisconnect().remove();
+                                    mySnakes.push(new SnakeMaster($.extend({},snakeDefault,{
+                                        master:true,
+                                        playerNum: num.toString()
+                                    })));
+                                    iAmReadyToPlay()
+                                }
+                            });
+                        } else if (online.val() === true && masterId !== num) {
+                            //There's a player online and is not me
+                            console.log("observer on " + num,"My master is" + masterId);
+                            mySnakes.push(new Snake($.extend({},snakeDefault,{
+                                playerNum: num.toString()
+                            })));
+                            iAmReadyToPlay();
+                        }
+                    });
+                }
+
+
+                remote.child('start').on('value', function(ready) {
+                    if (ready.val() === true) {
+                        startTheGame()
+                    }
+                })
+
+                connect(1);
+                connect(2);
+            //})
+        </script>
+    </body>
+</html>

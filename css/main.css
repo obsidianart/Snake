@@ -19,6 +19,12 @@ body {
 	background-color: white;
 }
 
+#players {
+	position: fixed;
+	top:0;
+	left:0;
+}
+
 
 
 

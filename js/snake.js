@@ -18,19 +18,13 @@ var Snake = function(options) {
 
     this.init();
 
-
-    this.initListeners();
     this.start();
-
-
-    var self = this;
-
-
 };
 
 Snake.prototype = {
 	init: function(){
         this.status = 'waiting';
+        this.initListeners();
 	},
 
 	start: function(){
@@ -120,7 +114,7 @@ Snake.prototype = {
             }
         } else {
             this.remote.child('player' + this.playerNum + '/direction').on('value', function(direction) {
-                console.log('direction get', direction.val(), self.playerNum)
+                console.log('Snake ' + self.playerNum + ' received an order to move ', direction.val())
                 if (direction.val())
                     self.direction = direction.val();
             });

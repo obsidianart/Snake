@@ -26,14 +26,14 @@
         <script src="js/cell.js"></script>
         <script src="js/board.js"></script>
         <script src="js/snake.js"></script>
-        <script type="nill" src="js/snakeMaster.js"></script>
+        <script src="js/snakeMaster.js"></script>
         <script>
             //$(document).ready(function(){
                 window.paper.setup(document.getElementById('myCanvas'));
 
                 var mySnakes = [];
                 var remote = new Firebase('https://multiSnake.firebaseIO.com/');
-                var players = 2;
+                var players = 1;
                 var activePlayerCounter = 0;
                 var masterId = null;
                 var board = new Board({
@@ -48,7 +48,7 @@
                     remote: remote,
                     playerNum: '1',
                     board: board,
-                    master: false,
+                    master: true,
                     control : {
                         left: 37,
                         up: 38,
@@ -57,49 +57,14 @@
                     }
                 };
 
-                
-                function connect(num){
-                    remote.child('player' + num + '/online').on('value', function(onlineSnap) {
-                        if (onlineSnap.val() === null && masterId === null) {
-                            masterId = num;
-
-                            remote.child('player' + num + '/online').transaction(function(onlineVal) {
-                                if (onlineVal === null) { return true; }  //we are good
-                                else { masterId = null; return; } //someone login first
-                            }, function(error, committed) {
-                                if (committed) { // We got in!
-                                    console.log('Mastering on ' + num)
-                                    var myPlayerRef = remote.child('player' + num);
-                                    // Clear our 'online' status when we disconnect so somebody else can join.
-                                    myPlayerRef.onDisconnect().remove();         
-                                    mySnakes.push(new Snake($.extend(snakeDefault,{
-                                        master:true,
-                                        playerNum: num.toString()
-                                    })));
-                                }
-                            });
-                        } else if (onlineSnap.val() === true && masterId !== num) {
-                            console.log("observer on " + num, masterId);
-                            mySnakes.push(new Snake($.extend(snakeDefault,{
-                                playerNum: num.toString()
-                            })));
-                        }
-                    });
-                }
-
-                connect(1);
-                connect(2);
+                var mySnake = new SnakeMaster(snakeDefault);
 
                 var lastTime = 0;
                 window.paper.view.onFrame = function(event) {
                     if (event.time >= lastTime) {
                         lastTime = event.time + 0.15; //Increment is time in seconds
-
-                        if (mySnakes.length === players) {
-                            for (var i=0; i<mySnakes.length; i++){
-                                mySnakes[i].move();
-                            }
-                        }
+                        
+                        mySnake.move();
                         window.paper.view.draw();
 
                     }
